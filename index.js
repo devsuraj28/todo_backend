@@ -25,6 +25,12 @@ server.use(morgan('dev'));
 //Routes -- Api Endpoints --
 server.use('/api/task', taskRouter.router);
 
-server.listen(process.env.PORT || 6000, (req, res) => {
-    console.log("Server Started");
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+    server.listen(process.env.PORT || 6000, (req, res) => {
+        console.log("Server Started");
+    });
+}
+
+// Export for Vercel
+module.exports = server;
