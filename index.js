@@ -15,7 +15,37 @@ const taskRouter = require('./routers/task');
 dataBaseConnection().catch(error => console.log(error));
 
 async function dataBaseConnection() {
-    await mongoose.connect(process.env.MONGO_URI).then(() => console.log("Database Connected Successfully")).catch(error => console.log(error));
+    try {
+        const mongoOptions = {
+            serverSelectionTimeoutMS: 30000, // 30 seconds timeout
+            socketTimeoutMS: 45000, // 45 seconds socket timeout
+            maxPoolSize: 10, // Maintain up to 10 socket connections
+            minPoolSize: 5, // Maintain a minimum of 5 socket connections
+        };
+        
+        // Disable mongoose buffering
+        mongoose.set('bufferCommands', false);
+        
+        await mongoose.connect(process.env.MONGO_URI, mongoOptions);
+        console.log("Database Connected Successfully");
+        
+        // Handle connection events
+        mongoose.connection.on('error', (error) => {
+            console.error('MongoDB connection error:', error);
+        });
+        
+        mongoose.connection.on('disconnected', () => {
+            console.log('MongoDB disconnected');
+        });
+        
+        mongoose.connection.on('reconnected', () => {
+            console.log('MongoDB reconnected');
+        });
+        
+    } catch (error) {
+        console.error('Failed to connect to database:', error.message);
+        process.exit(1);
+    }
 }
 
 //Middlewares
