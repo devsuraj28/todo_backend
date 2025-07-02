@@ -1,66 +1,63 @@
-//import external modules
+// Import external modules
 const express = require('express');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-
+const taskRouter = require('./routers/task');
 const server = express();
 
-//Import Custom Modules
-const taskRouter = require('./routers/task');
+// Mongoose connection options
+const mongoOptions = {
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  maxPoolSize: 10,
+  minPoolSize: 5,
+};
 
+// Disable mongoose command buffering
+mongoose.set('bufferCommands', false);
 
-//Database
-dataBaseConnection().catch(error => console.log(error));
-
-async function dataBaseConnection() {
-    try {
-        const mongoOptions = {
-            serverSelectionTimeoutMS: 30000, // 30 seconds timeout
-            socketTimeoutMS: 45000, // 45 seconds socket timeout
-            maxPoolSize: 10, // Maintain up to 10 socket connections
-            minPoolSize: 5, // Maintain a minimum of 5 socket connections
-        };
-        
-        // Disable mongoose buffering
-        mongoose.set('bufferCommands', false);
-        
-        await mongoose.connect(process.env.MONGO_URI, mongoOptions);
-        console.log("Database Connected Successfully");
-        
-        // Handle connection events
-        mongoose.connection.on('error', (error) => {
-            console.error('MongoDB connection error:', error);
-        });
-        
-        mongoose.connection.on('disconnected', () => {
-            console.log('MongoDB disconnected');
-        });
-        
-        mongoose.connection.on('reconnected', () => {
-            console.log('MongoDB reconnected');
-        });
-        
-    } catch (error) {
-        console.error('Failed to connect to database:', error.message);
-        process.exit(1);
-    }
-}
-
-//Middlewares
+// Middleware (setup before routes!)
 server.use(express.json());
 server.use(morgan('dev'));
 
-//Routes -- Api Endpoints --
+// Routes
 server.use('/api/task', taskRouter.router);
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
-    server.listen(process.env.PORT || 6000, (req, res) => {
-        console.log("Server Started");
+// DB Connection + Start server
+async function startServer() {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, mongoOptions);
+    console.log('✅ Database Connected Successfully');
+
+    // MongoDB Events
+    mongoose.connection.on('error', (error) => {
+      console.error('❌ MongoDB connection error:', error);
     });
+
+    mongoose.connection.on('disconnected', () => {
+      console.log('⚠️ MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('🔄 MongoDB reconnected');
+    });
+
+    // Start server only after DB is connected
+    const PORT = process.env.PORT || 6000;
+    server.listen(PORT, () => {
+      console.log(`🚀 Server started on http://localhost:${PORT}`);
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to connect to database:', error.message);
+    process.exit(1);
+  }
 }
 
-// Export for Vercel
+// Run the startup
+startServer();
+
+// Export for Vercel or testing
 module.exports = server;
